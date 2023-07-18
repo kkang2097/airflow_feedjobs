@@ -1,6 +1,5 @@
 from airflow import DAG
 import requests as req
-from rss_parser import Parser
 from urllib.parse import urlsplit
 import urllib.robotparser as urp
 import re
