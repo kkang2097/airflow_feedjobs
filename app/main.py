@@ -98,7 +98,7 @@ async def check_db(request: Request, client: MongoClient = Depends(get_db_client
 #TODO: Turn this into a DAG, deploy a Docker container
 @app.get('/data_scheduled')
 @auth_required_sync
-def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_client), req_session = Depends(get_req_session)):
+def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_client), req_session = Depends(get_req_session)) -> bool:
   #If we finish, we can return True
   #Else, we can return False
 
@@ -120,6 +120,12 @@ def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_c
       #Get all articles in 1 feed
       for a in articles:
         title = a.find('title').text
+        #Check if our article already exists, to prevent unique key error
+        #TODO: Find a more elegant way to do this some other time
+        if(posts_coll.count_documents({'_id': title}) > 0):
+          #Skip this iteration if the article already exists
+          print("item already exists!")
+          continue
         link = a.find('link').text
         published = a.find('pubDate').text
         description = a.find('description').text
@@ -127,26 +133,31 @@ def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_c
         fulltext = get_fulltext(link, req_session)
         embedding=None
         #Try to get embedding
-        # openai_status =
-        while True:
+        
+        #RunStatus initializes to True, sets to False later
+        run_incomplete = True
+        while run_incomplete:
           try:
             embedding = openai.Embedding.create(input=fulltext, model="text-embedding-ada-002")['data'][0]['embedding']
+            run_incomplete=False
           except:
             #Sleep for 5 seconds and try again...
             time.sleep(10)
+            print("Sleeping 10.")
 
-        #TODO: Bulk add articles to MongoDB
-        bulk_list.append(InsertOne({
+        #TODO: add articles to MongoDB
+        print("Writing to DB.")
+        posts_coll.insert_one({
           '_id': title,
           'link': link,
           'published': published,
           'description': description,
           'fulltext': fulltext,
           'embedding': embedding
-        }))
-    #TODO: Now bulk write to database
-    result = posts_coll.test.bulk_write(bulk_list)
-    print(result)
+        })
+    #TODO: Bulk write to database later
   except BaseException as inst:
-    print("Oh no, /data_scheduled JOB FAILED.")
+      print("Oh no, /data_scheduled JOB FAILED.")
+      print(inst)
+      return False
   return True
