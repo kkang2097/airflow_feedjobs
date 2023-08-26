@@ -52,3 +52,11 @@ def get_fulltext(url: str, req):
     body = list(map(lambda p: p.text, body))
     body = '\n'.join(body)
     return body
+
+#TODO: Fix this later
+def openai_isrunning(req):
+    # header = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
+    # payload = open("request.json")
+    res = req.get('https://status.openai.com/api/v2/status.json')#, data=payload, headers=header)
+    
+    return res
