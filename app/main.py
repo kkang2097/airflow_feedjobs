@@ -12,6 +12,7 @@ import config
 from .api_utils import *
 import requests as req
 from datetime import datetime as dt
+import time
 
 #Load environment variables
 load_dotenv()
@@ -126,10 +127,13 @@ def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_c
         fulltext = get_fulltext(link, req_session)
         embedding=None
         #Try to get embedding
-        try:
-          embedding = openai.Embedding.create(input=fulltext, model="text-embedding-ada-002")['data'][0]['embedding']
-        except:
-          pass
+        # openai_status =
+        while True:
+          try:
+            embedding = openai.Embedding.create(input=fulltext, model="text-embedding-ada-002")['data'][0]['embedding']
+          except:
+            #Sleep for 5 seconds and try again...
+            time.sleep(10)
 
         #TODO: Bulk add articles to MongoDB
         bulk_list.append(InsertOne({
@@ -140,17 +144,9 @@ def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_c
           'fulltext': fulltext,
           'embedding': embedding
         }))
-      #It's a good idea to place a breakpoint here for debugging
+    #TODO: Now bulk write to database
+    result = posts_coll.test.bulk_write(bulk_list)
+    print(result)
   except BaseException as inst:
     print("Oh no, /data_scheduled JOB FAILED.")
   return True
-
-#TODO: Embed Missing Embeddings
-@app.get('/label_scheduled')
-@auth_required_sync
-def embedding_labels(request: Request, client: MongoClient = Depends(get_db_client)):
-  #Label each post in DB
-  posts_coll = client['data']['posts']
-
-
-  return
