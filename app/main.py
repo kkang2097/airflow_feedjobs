@@ -122,7 +122,7 @@ def dummy_scheduled_job(request: Request, client: MongoClient = Depends(get_db_c
         title = a.find('title').text
         #Check if our article already exists, to prevent unique key error
         #TODO: Find a more elegant way to do this some other time
-        if(posts_coll.count_documents({'_id': title}) > 0):
+        if(posts_coll.find_one({'_id': title}) != None):
           #Skip this iteration if the article already exists
           print("item already exists!")
           continue
